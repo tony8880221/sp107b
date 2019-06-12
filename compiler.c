@@ -49,58 +49,13 @@ int F() {
     char *item = next();
     emit("t%d = %s\n", f, item);
   }
-  return f;#include <assert.h>
-#include "compiler.h"
-
-int E();
-void STMT();
-void IF();
-void BLOCK();
-
-int tempIdx = 0, labelIdx = 0;
-
-#define nextTemp() (tempIdx++)
-#define nextLabel() (labelIdx++)
-#define emit printf
-
-int isNext(char *set) {
-  char eset[SMAX], etoken[SMAX];
-  sprintf(eset, " %s ", set);
-  sprintf(etoken, " %s ", tokens[tokenIdx]);
-  return (tokenIdx < tokenTop && strstr(eset, etoken) != NULL);
-}
-
-int isEnd() {
-  return tokenIdx >= tokenTop;
-}
-
-char *next() {
-  // printf("token[%d]=%s\n", tokenIdx, tokens[tokenIdx]);
-  return tokens[tokenIdx++];
-}
-
-char *skip(char *set) {
-  if (isNext(set)) {
-    return next();
-  } else {
-    printf("skip(%s) got %s fail!\n", set, next());
-    assert(0);
-  }
-}
-
-// F = (E) | Number | Id
-int F() {
-  int f;
-  if (isNext("(")) { // '(' E ')'
-    next(); // (
-    f = E();
-    next(); // )
+  return f;
 }
 
 // E = F (op E)*
 int E() {
   int i1 = F();
-  while (isNext("+ - * / & | ! < > =  == >= <=")) {
+  while (isNext("+ - * / & | ! < > =")) {
     char *op = next();
     int i2 = E();
     int i = nextTemp();
@@ -119,6 +74,24 @@ void ASSIGN() {
   emit("%s = t%d\n", id, e);
 }
 
+void IF() {
+  int elseLabel = nextLabel();
+  int endifLabel = nextLabel();
+  skip("if");
+  skip("(");
+  int e = E();
+  skip(")");
+  emit("ifnot t%d goto L%d\n", e, elseLabel);
+  STMT();
+  emit("if t%d goto L%d\n", e ,endifLabel);
+  if(isNext("else")){
+    emit("(L%d)\n", elseLabel);
+    skip("else");
+    STMT();
+  }
+  emit("(L%d)\n", endifLabel);
+}
+
 // while (E) STMT
 void WHILE() {
   int whileBegin = nextLabel();
@@ -132,26 +105,6 @@ void WHILE() {
   STMT();
   emit("goto L%d\n", whileBegin);
   emit("(L%d)\n", whileEnd);
-}
-
-//IF = if (E) STMT (else STMT)?
-void IF(){
-  int elseLabel = nextLabel();
-  int endifLabel = nextLabel();
-  skip("if");
-  skip("(");
-  int e = E();
-  skip(")");
-  emit("ifnot t%d goto L%d\n", e, elseLabel);
-  STMT();
-  emit("if t%d goto L%d\n", e, endifLabel);
-  if(isNext("else")){
-    emit("L%d",elseLabel);
-    skip("(");
-    STMT();
-    skip(")");
-  }
-  emit("L%d", endifLabel);
 }
 
 void STMT() {
